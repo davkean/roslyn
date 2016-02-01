@@ -697,7 +697,7 @@ class Class
                         new CSharpSimplifyTypeNamesDiagnosticAnalyzer(), new CSharpSuppressionCodeFixProvider());
                 }
 
-                [WpfFact, Trait(Traits.Feature, Traits.Features.CodeActionsSuppression)]
+                [WpfFact(Skip= "https://github.com/dotnet/roslyn/issues/7825"), Trait(Traits.Feature, Traits.Features.CodeActionsSuppression)]
                 public async Task TestHiddenDiagnosticsCannotBeSuppressed()
                 {
                     await TestMissingAsync(
