@@ -10,6 +10,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Editor.Shared.Utilities;
 using Microsoft.CodeAnalysis.Host;
 using Microsoft.CodeAnalysis.Internal.Log;
@@ -49,10 +50,12 @@ namespace Roslyn.VisualStudio.DiagnosticsWindow.OptionsPages
         {
             base.OnApply(e);
 
-            SetLoggers(_globalOptions, _threadingContext, _workspaceServices);
+            // REVIEW: Can this be a fire and forget instead?
+            _threadingContext.JoinableTaskFactory.Run(async () =>
+                await SetLoggersAsync(_globalOptions, _workspaceServices));
         }
 
-        public static void SetLoggers(IGlobalOptionService globalOptions, IThreadingContext threadingContext, SolutionServices workspaceServices)
+        public static async Task SetLoggersAsync(IGlobalOptionService globalOptions, SolutionServices workspaceServices)
         {
             var loggerTypeNames = GetLoggerTypes(globalOptions).ToImmutableArray();
 
@@ -64,14 +67,14 @@ namespace Roslyn.VisualStudio.DiagnosticsWindow.OptionsPages
             SetRoslynLogger(loggerTypeNames, () => new OutputWindowLogger(isEnabled));
 
             // update loggers in remote process
-            var client = threadingContext.JoinableTaskFactory.Run(() => RemoteHostClient.TryGetClientAsync(workspaceServices, CancellationToken.None));
+            var client = await RemoteHostClient.TryGetClientAsync(workspaceServices, CancellationToken.None).ConfigureAwait(false);
             if (client != null)
             {
                 var functionIds = Enum.GetValues(typeof(FunctionId)).Cast<FunctionId>().Where(isEnabled).ToImmutableArray();
 
-                threadingContext.JoinableTaskFactory.Run(async () => _ = await client.TryInvokeAsync<IRemoteProcessTelemetryService>(
+                await client.TryInvokeAsync<IRemoteProcessTelemetryService>(
                     (service, cancellationToken) => service.EnableLoggingAsync(loggerTypeNames, functionIds, cancellationToken),
-                    CancellationToken.None).ConfigureAwait(false));
+                    CancellationToken.None).ConfigureAwait(false);
             }
         }
 

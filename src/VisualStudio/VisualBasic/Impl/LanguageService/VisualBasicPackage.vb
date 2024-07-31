@@ -7,7 +7,6 @@ Imports System.Threading
 Imports Microsoft.CodeAnalysis
 Imports Microsoft.CodeAnalysis.ErrorReporting
 Imports Microsoft.CodeAnalysis.Options
-Imports Microsoft.VisualStudio.LanguageServices.Implementation
 Imports Microsoft.VisualStudio.LanguageServices.Implementation.LanguageService
 Imports Microsoft.VisualStudio.LanguageServices.Implementation.ProjectSystem
 Imports Microsoft.VisualStudio.LanguageServices.VisualBasic.ObjectBrowser
@@ -71,11 +70,10 @@ Namespace Microsoft.VisualStudio.LanguageServices.VisualBasic
 
                 RegisterLanguageService(GetType(IVbCompilerService), Function() Task.FromResult(_comAggregate))
 
-                RegisterService(Of IVbTempPECompilerFactory)(
-                    Async Function(ct)
+                RegisterService(
+                    Function(ct)
                         Dim workspace = Me.ComponentModel.GetService(Of VisualStudioWorkspace)()
-                        Await JoinableTaskFactory.SwitchToMainThreadAsync(ct)
-                        Return New TempPECompilerFactory(workspace)
+                        Return Task.FromResult(Of IVbTempPECompilerFactory)(New TempPECompilerFactory(workspace))
                     End Function)
             Catch ex As Exception When FatalError.ReportAndPropagateUnlessCanceled(ex)
                 Throw ExceptionUtilities.Unreachable
